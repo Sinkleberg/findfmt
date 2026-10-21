@@ -224,3 +224,25 @@ def test_pyproject_dependency_minimums() -> None:
     test_dep_names = {d.split(";")[0].split(">=")[0].split("==")[0].strip() for d in test_deps}
     assert "docutils" in test_dep_names, "docutils must be in test dependency group"
     assert "hatchling" in test_dep_names, "hatchling must be in test dependency group"
+
+
+def test_ci_hermetic_git_ignore_step() -> None:
+    """Validate that CI jobs populate ~/.config/git/ignore before running pytest."""
+    ci = _load_ci_workflow()
+    jobs = ci.get("jobs", {})
+
+    # test-matrix
+    tm_steps = jobs["test-matrix"]["steps"]
+    tm_hermetic_idx = next(i for i, s in enumerate(tm_steps) if "Hermeticity" in s.get("name", ""))
+    tm_pytest_idx = next(i for i, s in enumerate(tm_steps) if "Run Pytest" in s.get("name", ""))
+    assert tm_hermetic_idx < tm_pytest_idx, "Hermeticity step must precede pytest in test-matrix"
+
+    # dependency-smoke-matrix
+    dsm_steps = jobs["dependency-smoke-matrix"]["steps"]
+    dsm_hermetic_idx = next(
+        i for i, s in enumerate(dsm_steps) if "Hermeticity" in s.get("name", "")
+    )
+    dsm_pytest_idx = next(i for i, s in enumerate(dsm_steps) if "Run Pytest" in s.get("name", ""))
+    assert dsm_hermetic_idx < dsm_pytest_idx, (
+        "Hermeticity step must precede pytest in dependency-smoke-matrix"
+    )
